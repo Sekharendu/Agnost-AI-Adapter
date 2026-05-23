@@ -21,8 +21,18 @@ export interface TelemetryPayload {
   clientConfig: string;
 }
 
-/** Generic wrapper returned by Agnost API calls, containing either data or errors. */
-export interface AgnostResponse<T> {
-  data: T | null;
-  errors: { message: string }[] | null;
+/** Data identifying the end user within a telemetry session, with content being optional. */
+export interface WrapperUserData {
+  userId: string;
+  email: string;
+  userPlan: string;
+  content?: string;
+}
+
+/** Options for configuring the Agnost adapter wrapper. */
+export interface AgnostAdapterOptions {
+  orgId: string;
+  apiKey: string;
+  userData: TelemetryUserData;
+  defaultSessionId?: string;
 }

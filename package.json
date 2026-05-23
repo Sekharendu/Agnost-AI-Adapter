@@ -1,7 +1,7 @@
 {
   "name": "agnost-ai-adapter",
   "version": "0.1.0",
-  "description": "Drop Agnost-backed memory into any Vercel AI agent in under 10 minutes",
+  "description": "Zero-friction observability wrapper for Vercel AI, OpenAI, and Mastra agents — automatic telemetry with one line of code",
   "main": "dist/adapter/index.js",
   "types": "dist/adapter/index.d.ts",
   "scripts": {
@@ -15,7 +15,7 @@
     "@ai-sdk/openai": "^1.0.0",
     "express": "^4.18.0",
     "dotenv": "^16.0.0",
-    "zod": "^3.22.0"
+    "openai": "^4.0.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
