@@ -108,8 +108,3 @@ export function wrapOpenAI(
     },
   });
 }
-
-return Reflect.get(target, prop, receiver);
-    },
-  });
-}
