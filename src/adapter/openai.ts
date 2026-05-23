@@ -35,76 +35,85 @@ export function wrapOpenAI(
                           completionsTarget,
                           params,
                         );
-                        if (params.stream === true) {
+
+                        if (params.stream) {
+                          client.sendTelemetry({
+                            sessionId,
+                            userData: {
+                              ...options.userData,
+                              content: JSON.stringify(params.messages),
+                            },
+                            timestamp: startTime,
+                            clientConfig: 'openai-sdk',
+                            metadata: {
+                              duration: Date.now() - startTime,
+                              model: params.model,
+                              streamed: true,
+                            },
+                          });
+                        } else {
+                          const completion =
+                            response as OpenAI.Chat.Completions.ChatCompletion;
+
+                          client.sendTelemetry({
+                            sessionId,
+                            userData: {
+                              ...options.userData,
+                              content: JSON.stringify(params.messages),
+                            },
+                            timestamp: startTime,
+                            clientConfig: 'openai-sdk',
+                            metadata: {
+                              duration: Date.now() - startTime,
+                              model: params.model,
+                              usage: completion.usage ?? null,
+                              finishReason:
+                                completion.choices[0]?.finish_reason ??
+                                'unknown',
+                              toolCallCount:
+                                completion.choices[0]?.message?.tool_calls
+                                  ?.length ?? 0,
+                            },
+                          });
+                        }
+
+                        return response;
+                      } catch (error) {
                         client.sendTelemetry({
                           sessionId,
-                          userData: {
-                            ...options.userData,
-                            content: JSON.stringify(params.messages),
-                          },
+                          userData: options.userData,
                           timestamp: startTime,
                           clientConfig: 'openai-sdk',
                           metadata: {
                             duration: Date.now() - startTime,
-                            model: params.model,
-                            streamed: true,
+                            error:
+                              error instanceof Error
+                                ? error.message
+                                : 'Unknown error',
+                            failed: true,
                           },
                         });
-                      } else {
-                    // 2. Handle the Standard scenario safely
-                    // Tell TypeScript this is definitely a standard ChatCompletion
-                    const completion = response as OpenAI.Chat.Completions.ChatCompletion;
 
-                    client.sendTelemetry({
-                      sessionId,
-                      userData: {
-                        ...options.userData,
-                        content: JSON.stringify(params.messages),
-                      },
-                      timestamp: startTime,
-                      clientConfig: 'openai-sdk',
-                      metadata: {
-                        duration: Date.now() - startTime,
-                        model: params.model,
-                        usage: completion.usage ?? null,
-                        finishReason: completion.choices[0]?.finish_reason ?? 'unknown',
-                        toolCallCount: completion.choices[0]?.message?.tool_calls?.length ?? 0,
-                      },
-                    });
+                        throw error;
+                      }
+                    };
                   }
 
-                  return response;
-                } catch(error) {
-                  client.sendTelemetry({
-                    sessionId,
-                    userData: options.userData,
-                    timestamp: startTime,
-                    clientConfig: 'openai-sdk',
-                    metadata: {
-                      duration: Date.now() - startTime,
-                      error:
-                        error instanceof Error
-                          ? error.message
-                          : 'Unknown error',
-                      failed: true,
-                    },
-                  });
-
-                  throw error;
-                }
-              };
+                  return Reflect.get(
+                    completionsTarget,
+                    completionsProp,
+                    completionsReceiver,
+                  );
+                },
+              });
             }
 
-            return Reflect.get(
-              completionsTarget,
-              completionsProp,
-              completionsReceiver,
-            );
+            return Reflect.get(chatTarget, chatProp, chatReceiver);
           },
         });
       }
 
-      return Reflect.get(chatTarget, chatProp, chatReceiver);
+      return Reflect.get(target, prop, receiver);
     },
   });
 }
