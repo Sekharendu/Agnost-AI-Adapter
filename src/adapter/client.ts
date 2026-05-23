@@ -1,67 +1,34 @@
-import type { AgnostAdapterConfig, AgnostResponse } from '../types';
+import type { AgnostAdapterConfig, TelemetryPayload } from '../types';
 
-/** Thin HTTP client for Agnost's REST API, providing create, query, and delete-many operations. */
+/** Thin HTTP client for Agnost's observability API, providing fire-and-forget telemetry capture. */
 export class AgnostClient {
-  private apiUrl: string;
-  private apiKey: string;
-  private dbName: string;
+  private orgId: string;
 
   constructor(config: AgnostAdapterConfig) {
-    this.apiUrl = config.apiUrl.replace(/\/+$/, '');
-    this.apiKey = config.apiKey;
-    this.dbName = config.dbName;
+    this.orgId = config.orgId;
   }
 
-  async create<T>(collection: string, data: object): Promise<AgnostResponse<T>> {
-    const url = `${this.apiUrl}/object/${this.dbName}/${collection}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(data),
-    });
-    return res.json() as Promise<AgnostResponse<T>>;
-  }
-
-  async query<T>(
-    collection: string,
-    filter: object,
-    options?: { limit?: number; sort?: object },
-  ): Promise<AgnostResponse<T[]>> {
-    const url = `${this.apiUrl}/object/${this.dbName}/${collection}/search`;
+  sendTelemetry(payload: TelemetryPayload): void {
     const body = {
-      filter,
-      options: {
-        limit: options?.limit ?? 10,
-        sort: options?.sort ?? { timestamp: 'asc' },
+      session_id: payload.sessionId,
+      user_data: {
+        user_id: payload.userData.userId,
+        email: payload.userData.email,
+        user_plan: payload.userData.userPlan,
+        content: payload.userData.content,
       },
+      metadata: payload.metadata ?? {},
+      timestamp: payload.timestamp,
+      client_config: payload.clientConfig,
     };
-    const res = await fetch(url, {
+
+    fetch('https://api.agnost.ai/api/v1/capture-session', {
       method: 'POST',
       headers: {
+        'x-org-id': this.orgId,
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
-    });
-    return res.json() as Promise<AgnostResponse<T[]>>;
-  }
-
-  async deleteMany(
-    collection: string,
-    filter: object,
-  ): Promise<AgnostResponse<{ count: number }>> {
-    const url = `${this.apiUrl}/object/${this.dbName}/${collection}/delete-many`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({ filter }),
-    });
-    return res.json() as Promise<AgnostResponse<{ count: number }>>;
+    }).catch(() => {});
   }
 }
