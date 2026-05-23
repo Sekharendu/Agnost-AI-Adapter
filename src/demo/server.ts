@@ -39,6 +39,44 @@ const mockMastraAgent = {
 };
 const wrappedMastra = agnost.wrapMastraAgent(mockMastraAgent);
 
+//Mock Vercel client for demo purposes
+// app.post('/chat/vercel', async (req, res) => {
+//   try {
+//     const { message } = req.body;
+
+//     if (!message) {
+//       res.status(400).json({ error: 'message is required' });
+//       return;
+//     }
+
+//     // Mock model for demo — swap openaiProvider('gpt-4o-mini')
+//     // with a real provider when API credits are available
+//     const mockModel = {
+//       specificationVersion: 'v1', 
+//       provider: 'mock-provider',  
+//       modelId: 'mock-model',      
+//       defaultObjectGenerationMode: 'json',
+//       doGenerate: async () => ({
+//         text: `[Vercel AI] You asked: "${message}". Demo response — wire a real LLM provider for live responses.`,
+//         usage: { promptTokens: 15, completionTokens: 25 },
+//         finishReason: 'stop',
+//         toolCalls: [],
+//         rawCall: { rawPrompt: [], rawSettings: {} },
+//       }),
+//     } as any;
+
+//     const result = await agnost.vercel.generateText({
+//       model: mockModel,
+//       system: 'You are a helpful assistant.',
+//       messages: [{ role: 'user', content: message }],
+//     });
+
+//     res.json({ reply: result.text, sdk: 'vercel-ai', tracked: true });
+//   } catch (error) {
+//     console.error('Vercel route error:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 app.post('/chat/vercel', async (req, res) => {
   try {
     const { message } = req.body;
@@ -61,6 +99,61 @@ app.post('/chat/vercel', async (req, res) => {
   }
 });
 
+//  Mock OpenAI client for demo purposes
+
+// app.post('/chat/openai', async (req, res) => {
+//   const { message } = req.body as { message: string };
+
+//   if (!message) {
+//     return res.status(400).json({ error: 'message is required' });
+//   }
+
+//   try {
+//     const mockOpenAIClient = {
+//       chat: {
+//         completions: {
+//           create: async (params: any) => ({
+//             id: 'mock-completion-id',
+//             choices: [{
+//               message: {
+//                 role: 'assistant',
+//                 content: `[Mock OpenAI] You asked: "${params.messages.at(-1)?.content}". This is a demo response — wire a real OpenAI key to get real responses.`,
+//                 tool_calls: undefined,
+//               },
+//               finish_reason: 'stop',
+//               index: 0,
+//             }],
+//             usage: {
+//               prompt_tokens: 20,
+//               completion_tokens: 30,
+//               total_tokens: 50,
+//             },
+//             model: params.model,
+//             object: 'chat.completion' as const,
+//             created: Math.floor(Date.now() / 1000),
+//           })
+//         }
+//       }
+//     } as any;
+
+//     const wrappedOpenAI = agnost.wrapOpenAI(mockOpenAIClient);
+
+//     const response = await wrappedOpenAI.chat.completions.create({
+//       model: 'gpt-4o-mini',
+//       messages: [
+//         { role: 'system', content: 'You are a helpful assistant.' },
+//         { role: 'user', content: message },
+//       ],
+//     });
+
+//     const reply = response.choices[0]?.message?.content ?? 'No response';
+//     return res.json({ reply, sdk: 'openai-sdk', tracked: true });
+
+//   } catch (err) {
+//     console.error('OpenAI route error:', err);
+//     return res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 app.post('/chat/openai', async (req, res) => {
   try {
     const { message } = req.body;
