@@ -35,7 +35,7 @@ export function wrapOpenAI(
                           completionsTarget,
                           params,
                         );
-
+                        if (params.stream === true) {
                         client.sendTelemetry({
                           sessionId,
                           userData: {
@@ -47,52 +47,69 @@ export function wrapOpenAI(
                           metadata: {
                             duration: Date.now() - startTime,
                             model: params.model,
-                            usage: response.usage ?? null,
-                            finishReason:
-                              response.choices[0]?.finish_reason ?? 'unknown',
-                            toolCallCount:
-                              response.choices[0]?.message?.tool_calls
-                                ?.length ?? 0,
+                            streamed: true,
                           },
                         });
+                      } else {
+                    // 2. Handle the Standard scenario safely
+                    // Tell TypeScript this is definitely a standard ChatCompletion
+                    const completion = response as OpenAI.Chat.Completions.ChatCompletion;
 
-                        return response;
-                      } catch (error) {
-                        client.sendTelemetry({
-                          sessionId,
-                          userData: options.userData,
-                          timestamp: startTime,
-                          clientConfig: 'openai-sdk',
-                          metadata: {
-                            duration: Date.now() - startTime,
-                            error:
-                              error instanceof Error
-                                ? error.message
-                                : 'Unknown error',
-                            failed: true,
-                          },
-                        });
-
-                        throw error;
-                      }
-                    };
+                    client.sendTelemetry({
+                      sessionId,
+                      userData: {
+                        ...options.userData,
+                        content: JSON.stringify(params.messages),
+                      },
+                      timestamp: startTime,
+                      clientConfig: 'openai-sdk',
+                      metadata: {
+                        duration: Date.now() - startTime,
+                        model: params.model,
+                        usage: completion.usage ?? null,
+                        finishReason: completion.choices[0]?.finish_reason ?? 'unknown',
+                        toolCallCount: completion.choices[0]?.message?.tool_calls?.length ?? 0,
+                      },
+                    });
                   }
 
-                  return Reflect.get(
-                    completionsTarget,
-                    completionsProp,
-                    completionsReceiver,
-                  );
-                },
-              });
+                  return response;
+                } catch(error) {
+                  client.sendTelemetry({
+                    sessionId,
+                    userData: options.userData,
+                    timestamp: startTime,
+                    clientConfig: 'openai-sdk',
+                    metadata: {
+                      duration: Date.now() - startTime,
+                      error:
+                        error instanceof Error
+                          ? error.message
+                          : 'Unknown error',
+                      failed: true,
+                    },
+                  });
+
+                  throw error;
+                }
+              };
             }
 
-            return Reflect.get(chatTarget, chatProp, chatReceiver);
+            return Reflect.get(
+              completionsTarget,
+              completionsProp,
+              completionsReceiver,
+            );
           },
         });
       }
 
-      return Reflect.get(target, prop, receiver);
+      return Reflect.get(chatTarget, chatProp, chatReceiver);
+    },
+  });
+}
+
+return Reflect.get(target, prop, receiver);
     },
   });
 }
