@@ -31,18 +31,41 @@ Every technical decision below flows from this constraint.
 ---
 
 ## Architecture
-Developer's agent code
-│
-▼
-agnost-ai-adapter (wrapper layer)
-├── vercel.ts   → wraps generateText / streamText
-├── openai.ts   → Proxy wraps OpenAI client
-└── mastra.ts   → wraps agent.generate / agent.stream
-│
-├── Calls real SDK function (response unchanged)
-│
-└── client.ts → fire-and-forget POST to Agnost
-/api/v1/capture-session
+## Architecture
+
+```mermaid
+flowchart TD
+    A([Developer Code]) --> B[createAgnostAdapter\norgId · apiKey · userData]
+
+    B --> C[vercel.ts\ngenerateText · streamText]
+    B --> D[openai.ts\nProxy → chat.completions.create]
+    B --> E[mastra.ts\nagent.generate · agent.stream]
+
+    C --> F[[LLM Provider APIs\nOpenAI · Groq · Anthropic]]
+    D --> F
+    E --> F
+
+    F --> G([Original response\nreturned unchanged])
+    G --> A
+
+    C -. fire and forget .-> H[AgnostClient\nclient.ts]
+    D -. fire and forget .-> H
+    E -. fire and forget .-> H
+
+    H -. POST .-> I[[Agnost API\n/api/v1/capture-session]]
+    I --> J([Agnost Dashboard\nlatency · tokens · errors · tools])
+
+    style A fill:#1d4ed8,color:#fff
+    style G fill:#1d4ed8,color:#fff
+    style J fill:#1d4ed8,color:#fff
+    style F fill:#374151,color:#fff
+    style I fill:#374151,color:#fff
+    style H fill:#92400e,color:#fff
+    style B fill:#065f46,color:#fff
+    style C fill:#064e3b,color:#fff
+    style D fill:#064e3b,color:#fff
+    style E fill:#064e3b,color:#fff
+```
 
 The adapter sits between the developer's code and the SDK. It intercepts 
 the call, records timing and metadata, returns the original response 
@@ -51,24 +74,17 @@ sees the telemetry layer.
 
 ---
 
-## SDK Selection: Why These Three
+## SDK Integration: Decisions Within the Brief
 
-**Vercel AI SDK** was the primary target. It has the largest adoption in 
-the TypeScript agent ecosystem, the cleanest `tool()` API, and first-class 
-streaming support. Most developers building new agents in 2025 start here.
+The SDK targets — Vercel AI, OpenAI SDK, and Mastra — were defined in the assignment. The decisions were around prioritization, integration strategy, and scope.
 
-**OpenAI SDK** was second. It's still the most widely used direct 
-integration, especially in existing codebases. Many teams that predate 
-the Vercel AI SDK never migrated.
+**Vercel AI SDK was built first** because it has strong adoption in the TypeScript ecosystem and exposes clean `generateText` / `streamText` APIs, making it the simplest starting point.
 
-**Mastra** was third. It's newer but growing fast, and it represents a 
-different paradigm - Agent objects rather than raw API calls. Including it 
-demonstrates the adapter pattern works across different SDK philosophies.
+**OpenAI SDK required a different approach.** Since it is a stateful client with multiple namespaces, a Proxy pattern was used to preserve the full SDK surface while intercepting only `chat.completions.create()`.
 
-**What I rejected:** LangChain — too opinionated, complex dependency tree, 
-and declining in favour of lighter frameworks. Anthropic SDK directly — 
-the Vercel AI SDK already wraps it via `@ai-sdk/anthropic`. Adding it 
-natively would duplicate coverage.
+**Mastra required a different philosophy.** Since it operates on Agent objects and its types change across versions, structural typing (`agent: any`) was used to keep the wrapper version-agnostic.
+
+**Out of scope:** LangChain was excluded to keep the MVP lightweight and focused on minimal-friction integrations. Native Anthropic support was also skipped since it is already covered through `@ai-sdk/anthropic` within the Vercel AI SDK ecosystem.
 
 ---
 
@@ -117,11 +133,11 @@ fetch('https://api.agnost.ai/api/v1/capture-session', { ... })
 ```
 
 This means:
-- Zero added latency to the agent response time
+- No meaningful latency added to the user-facing request pat
 - No crash if Agnost's API is slow, down, or returns an error
 - The developer's users never feel the observability layer
 
-Observability that adds latency is worse than no observability.
+Observability should provide visibility without noticeably affecting the developer or end-user experience.
 
 ---
 
@@ -173,6 +189,8 @@ errors per agent turn. That's 90% of what developers need to debug and
 monitor agents. Granular step-by-step event tracing and MCP interception 
 are the right next steps - but they would take more than a week
 
+**Production concerns intentionally deferred:** I did not implement telemetry batching, PII redaction, sampling, or payload size limits in this MVP. These become important at scale because observability systems can easily create large volumes of data and privacy concerns. For a weekend implementation, I prioritized proving the adapter pattern and keeping the integration friction low.
+
 ---
 
 ## Demo Environment Strategy
@@ -207,10 +225,10 @@ tracing inside a single agent turn — when a sub-agent is spawned, when
 a tool is called, when a retrieval happens. This data is what separates 
 session-level monitoring from real observability.
 
-**Week 3:** MCP (Model Context Protocol) client interception. As MCP 
-becomes the standard for tool distribution, wrapping the MCP client 
-means Agnost automatically monitors standard tool invocations across 
-any MCP-compliant server — without needing SDK-specific wrappers for 
+**Week 3:** MCP (Model Context Protocol) client interception. As MCP
+is slowly becoming the standard for tool distribution, wrapping the 
+MCP client means Agnost automatically monitors standard tool invocations 
+across any MCP-compliant server — without needing SDK-specific wrappers for 
 each new framework.
 
 **Week 4:** A retry queue for failed telemetry. An in-memory buffer that 
@@ -222,10 +240,11 @@ the agent's response path.
 
 ## Vision: Why This Matters
 
-AI agents are black boxes today. A developer deploys an agent, users 
-complain it's slow or wrong, and the developer has no idea which call 
-failed, which tool was invoked, how many tokens the response burned, 
-or what the user actually asked. They're flying blind.
+For many developers, AI agents can feel like black boxes once deployed.
+A developer deploys an agent, users complain it's slow or wrong, 
+and the developer has no idea which call failed, which tool was invoked, 
+how many tokens the response burned, or what the user actually asked. 
+They're flying blind.
 
 The agent ecosystem is also fracturing. Vercel AI, OpenAI SDK, Mastra, 
 LangChain, Anthropic, AutoGen — every team picks a different framework, 
@@ -233,7 +252,7 @@ and every framework requires a different monitoring setup.
 The agent observability ecosystem is still evolving, 
 and developers often need to combine multiple tools to understand agent behavior.
 
-Agnost is positioned to be that layer. Not by building yet another agent 
+I think Agnost has an opportunity to become that layer. Not by building yet another agent 
 framework, but by sitting underneath all of them — capturing telemetry 
 regardless of which SDK a team chose. The `/capture-session` endpoint is 
 the foundation. The adapter pattern in this repo is the on-ramp. The 
