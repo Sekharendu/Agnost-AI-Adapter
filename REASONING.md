@@ -137,9 +137,10 @@ without a resolved response. Used `result.usage.then()` to attach a
 listener — when the stream completes and token counts are available, 
 telemetry fires then. The stream itself is returned instantly.
 
-**Session IDs:** Used `crypto.randomUUID()` as a fallback so every call 
+**Session IDs:** Used `randomUUID()` from `node:crypto` as a fallback so every call 
 gets a unique session ID even if the developer doesn't provide one. 
-This ensures no telemetry is ever dropped due to a missing ID.
+This keeps the library compatible with Node.js 18+ without relying on 
+the global Web Crypto API (Node 19+)
 
 **Unsupported frameworks (escape hatch):** Exposed `adapter.client` 
 directly so developers using Anthropic, Google Gemini, or any other 

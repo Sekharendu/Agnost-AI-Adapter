@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { generateText, streamText } from 'ai';
 import type { AgnostClient } from './client';
 import type { AgnostAdapterOptions } from '../types';
@@ -5,7 +6,7 @@ import type { AgnostAdapterOptions } from '../types';
 export function createVercelAdapter(client: AgnostClient, options: AgnostAdapterOptions) {
   return {
     async generateText(params: Parameters<typeof generateText>[0]) {
-      const sessionId = options.defaultSessionId ?? globalThis.crypto.randomUUID();
+      const sessionId = options.defaultSessionId ?? randomUUID();
       const startTime = Date.now();
 
       try {
@@ -50,7 +51,7 @@ export function createVercelAdapter(client: AgnostClient, options: AgnostAdapter
     },
 
     streamText(params: Parameters<typeof streamText>[0]) {
-      const sessionId = options.defaultSessionId ?? globalThis.crypto.randomUUID();
+      const sessionId = options.defaultSessionId ?? randomUUID();
       const startTime = Date.now();
 
       try {

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { AgnostClient } from './client';
 import type { AgnostAdapterOptions } from '../types';
 
@@ -14,7 +15,7 @@ export function wrapMastraAgent(
   return {
     async generate(input: string, generateOptions?: Record<string, unknown>) {
       const startTime = Date.now();
-      const sessionId = options.defaultSessionId ?? crypto.randomUUID();
+      const sessionId = options.defaultSessionId ?? randomUUID();
 
       try {
         const result = await agent.generate(input, generateOptions);
@@ -62,7 +63,7 @@ export function wrapMastraAgent(
 
     async stream(input: string, streamOptions?: Record<string, unknown>) {
       const startTime = Date.now();
-      const sessionId = options.defaultSessionId ?? crypto.randomUUID();
+      const sessionId = options.defaultSessionId ?? randomUUID();
 
       try {
         const result = await agent.stream(input, streamOptions);

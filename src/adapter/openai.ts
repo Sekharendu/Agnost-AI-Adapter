@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import OpenAI from 'openai';
 import { AgnostClient } from './client';
 import type { AgnostAdapterOptions } from '../types';
@@ -28,7 +29,7 @@ export function wrapOpenAI(
                       const startTime = Date.now();
                       const sessionId =
                         options.defaultSessionId ??
-                        globalThis.crypto.randomUUID();
+                        randomUUID();
 
                       try {
                         const response = await completionsTarget.create.call(
