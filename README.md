@@ -1,4 +1,4 @@
-# agnost-ai-adapter
+# Agnost-AI-Adapter
 
 Zero-friction observability wrapper for Vercel AI, OpenAI, and Mastra 
 agents. Automatic telemetry on every AI call — timing, token usage, 
